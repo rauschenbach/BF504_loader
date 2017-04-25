@@ -1,0 +1,44 @@
+PROGNAME = bf504f_loader
+CC_DIR = C:/Program Files/Analog Devices/VisualDSP 5.0
+OBJCOPY_DIR = ..\utils
+CC = ${CC_DIR}/ccblkfn.exe
+AS = ${CC_DIR}/easmBLKFN.exe
+OBJCOPY =  ${OBJCOPY_DIR}/objcopy
+
+REVISION = -si-revision 0.1
+
+CFLAGS = -Os -DQUARTZ_CLK_FREQ=19200000 -structs-do-not-overlap -no-multiline -D__PROCESSOR_SPEED__=60000000 -double-size-32 \
+                     -decls-strong -warn-protos ${REVISION} -proc ADSP-BF504F -file-attr ProjectName=${PROGNAME}
+ASFLAG = -proc ADSP-BF504F ${REVISION} -MM -file-attr ProjectName={PROGNAME} 
+LDFLAG = -flags-link -MDUSER_CRT=ADI_QUOTEbf504f_loader_basiccrt.dojADI_QUOTE,-MD__cplusplus -flags-link -e \
+         -flags-link -ev -flags-link -od,.\Release_loader -proc ADSP-BF504F  ${REVISION} -flags-link -MM
+
+
+OBJS = $(addprefix Release_loader/,card.doj fatfs.doj flash.doj bf504f_loader_basiccrt.doj bf504f_loader_heaptab.doj \
+		led.doj main.doj pll.doj ports.doj rele.doj rsi.doj sport0.doj timer0.doj xpander.doj)
+
+
+TMPFILES =  *.c~ *.h~
+
+all: Release_loader/loader.rom
+
+
+Release_loader/loader.rom: Release_loader/${PROGNAME}.dxe Makefile
+	${CC_DIR}/elfloader.exe Release_loader\${PROGNAME}.dxe -romsplitter -maskaddr 21 -b Flash -f HEX -Width 16 -o Release_loader/loader2.hex ${REVISION} -proc ADSP-BF504F -MM
+	${OBJCOPY} -I ihex -O binary Release_loader/loader2.hex Release_loader/loader.rom
+
+Release_loader/${PROGNAME}.dxe: ${OBJS}
+	${CC} $^ -o $@ -T ${PROGNAME}.ldf -map Release_loader\${PROGNAME}.map.xml -flags-link -xref -L .\Release_loader ${LDFLAG}
+
+clean:
+	@del /F /Q $(subst /,\,${OBJS}) Release_loader\${PROGNAME}* Release_loader\*.xml Release_loader\*ldr ${TMPFILES} Release_loader\*.r*m Release_loader\*.hex
+
+Release_loader/%.doj: %.c config.h
+	${CC} ${CFLAGS} -c $^ -o $@
+
+Release_loader/${PROGNAME}_basiccrt.doj: ${PROGNAME}_basiccrt.s
+	${AS} ${PROGNAME}_basiccrt.s ${ASFLAG} -o Release_loader/${PROGNAME}_basiccrt.doj 
+
+Release_loader/main.doj: main.c my_defs.h pll.h
+	@echo ".\main.c"
+	${CC} ${CFLAGS} -c main.c  -o Release_loader/main.doj
