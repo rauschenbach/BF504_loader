@@ -15,9 +15,9 @@
 #include <cdefBF504f.h>  /*  У нас другой блекфин!!! */
 #include <cycles.h>
 #include <sys\exception.h>
-#include "my_defs.h"
+#include "globdefs.h"
 #include "pll.h"
-#include "config.h"
+#include "ffconf.h"
 
 
 /****************************************************/

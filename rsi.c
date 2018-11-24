@@ -16,22 +16,22 @@ static int rsi_wait_for_card(void);
 static void rsi_set_optimum_identification_speed(void);
 static void rsi_get_pll_clocks(void);
 static void rsi_set_optimum_sd_speed(void);
-static uint32_t sd_mmc_send_command(uint16_t, uint32_t);	/* sends a command to over the RSI */
+static uint32_t rsi_send_command(uint16_t, uint32_t);	/* sends a command to over the RSI */
 
-static SD_MMC_CARD_TYPE sd_mmc_identification(void);
-static SD_MMC_CARD_TYPE sd_mmc_identification_sdv2(uint32_t);	/* performs SD Version 2.0 or later card detection */
-static SD_MMC_CARD_TYPE sd_mmc_identification_sdv1(void);	/* performs SD Version 1.x or earlier card detection */
-static uint32_t sd_mmc_set_bus_width_4_bits(void);
-static uint32_t sd_mmc_get_sd_cid(void);
-static uint32_t sd_mmc_get_sd_scr_register(void);
-static uint32_t sd_mmc_get_sd_ssr_register(void);
-static uint32_t sd_mmc_get_wait_until_ready(void);
-static uint32_t sd_mmc_send_csd(void);
+static SD_MMC_CARD_TYPE rsi_identification(void);
+static SD_MMC_CARD_TYPE rsi_identification_sdv2(uint32_t);	/* performs SD Version 2.0 or later card detection */
+static SD_MMC_CARD_TYPE rsi_identification_sdv1(void);	/* performs SD Version 1.x or earlier card detection */
+static uint32_t rsi_set_bus_width_4_bits(void);
+static uint32_t rsi_get_sd_cid(void);
+static uint32_t rsi_get_sd_scr_register(void);
+static uint32_t rsi_get_sd_ssr_register(void);
+static uint32_t rsi_get_wait_until_ready(void);
+static uint32_t rsi_send_csd(void);
 
-static uint32_t sd_mmc_write_multi_blocks_dma(uint32_t, void *, uint32_t);
-static uint32_t sd_mmc_write_single_block_dma(uint32_t, void *);
-static uint32_t sd_mmc_read_multi_blocks_dma(uint32_t, void *, uint32_t);
-static uint32_t sd_mmc_read_single_block_dma(uint32_t, void *);
+static uint32_t rsi_write_multi_blocks_dma(uint32_t, void *, uint32_t);
+static uint32_t rsi_write_single_block_dma(uint32_t, void *);
+static uint32_t rsi_read_multi_blocks_dma(uint32_t, void *, uint32_t);
+static uint32_t rsi_read_single_block_dma(uint32_t, void *);
 
 
 
@@ -46,6 +46,7 @@ static CARD_TIMEOUT_STRUCT timeout_struct;
 
 
 /* Выдать параметры SD карты */
+section("L1_code")
 int rsi_get_sd_cart_type_and_speed_grade(void *par)
 {
     /* Скопируем параметры  */
@@ -56,6 +57,7 @@ int rsi_get_sd_cart_type_and_speed_grade(void *par)
 /**
  * Перещитать адрес карты, если она невысокой плотности
  */
+section("L1_code")
 static uint32_t card_address(uint32_t block_num)
 {
     return (adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X_HIGH_CAPACITY) ? block_num : block_num * 512;
@@ -64,6 +66,7 @@ static uint32_t card_address(uint32_t block_num)
 /**
  * Найти оптимальный CLK карты 
  */
+section("L1_code")
 static void rsi_set_optimum_sd_speed(void)
 {
     uint32_t clkdiv = 0;
@@ -91,47 +94,49 @@ static void rsi_set_optimum_sd_speed(void)
 /**
  * Определить, какая карта у нас вставлена. От определения зависит способ работы с ней.
  */
-static SD_MMC_CARD_TYPE sd_mmc_identification(void)
+section("L1_code")
+static SD_MMC_CARD_TYPE rsi_identification(void)
 {
     uint32_t error;
     uint32_t response;
 
     /* Sending GO_IDLE_STATE command before performing card identification */
-    error = sd_mmc_send_command(SD_MMC_CMD_GO_IDLE_STATE, 0);
+    error = rsi_send_command(SD_MMC_CMD_GO_IDLE_STATE, 0);
 
     /* Sending SEND_IF_COND command for 2.7V to 3.6V compatibility. Starting SD Version 2.0 identification. */
-    error = sd_mmc_send_command(SD_CMD_SEND_IF_COND, 0x000001AA);
+    /* SD_MMC_CMD8 | R7_RESPONSE  */
+    error = rsi_send_command(SD_CMD_SEND_IF_COND, 0x000001AA);
 
     if (!error) {
 	/* Card is compatible, likely an SD Version 2.0 compliant card. It's a version 2.0 or later SD memory card */
 	response = *pRSI_RESPONSE0;	/* get the response to send to the identification routine */
-	adi_rsi_card_registers.type = sd_mmc_identification_sdv2(response);
+	adi_rsi_card_registers.type = rsi_identification_sdv2(response);
     } else {
 	/* Card is not compatible or did not respond. Starting SD Version 1.x identification */
-	adi_rsi_card_registers.type = sd_mmc_identification_sdv1();	/* check if it's a version 1.X SD memory card */
+	adi_rsi_card_registers.type = rsi_identification_sdv1();	/* check if it's a version 1.X SD memory card */
     }
 
     /* Для всех карт всех версий  */
     if (adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V1X || adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X ||
 	adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X_HIGH_CAPACITY) {
 
-	error = sd_mmc_get_sd_cid();	/* Requesting CID register */
-	error = sd_mmc_send_command(SD_CMD_SEND_RELATIVE_ADDR, 0);	/* Requesting RCA */
+	error = rsi_get_sd_cid();	/* Requesting CID register */
+	error = rsi_send_command(SD_CMD_SEND_RELATIVE_ADDR, 0);	/* Requesting RCA */
 	if (!error) {
 	    *pRSI_PWR_CONTROL &= 0x3;
 	    adi_rsi_card_registers.sd.rca = (*pRSI_RESPONSE0 & 0xFFFF0000) >> 16;
 
 	    /* Requesting Card Status register */
-	    error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, (adi_rsi_card_registers.sd.rca << 16));
+	    error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, (adi_rsi_card_registers.sd.rca << 16));
 	    adi_rsi_card_registers.sd.csr = *pRSI_RESPONSE0;
 
-	    error = sd_mmc_send_csd();	/* Requesting CSD register */
+	    error = rsi_send_csd();	/* Requesting CSD register */
 	    if (error) {
 		adi_rsi_card_registers.type = CARD_SLOT_NOT_INITIALIZED;
 		goto met;
 	    }
 	    // здесь ощибка на одной из карт!!!
-	    error = sd_mmc_get_sd_scr_register();	/* Requesting SCR register */
+	    error = rsi_get_sd_scr_register();	/* Requesting SCR register */
 	    if (error) {
 		adi_rsi_card_registers.type = CARD_SLOT_NOT_INITIALIZED;
 		goto met;
@@ -140,13 +145,13 @@ static SD_MMC_CARD_TYPE sd_mmc_identification(void)
 	    rsi_set_optimum_sd_speed();	/* Optimizing RSI interface speed */
 
 	    adi_rsi_card_registers.bus_width = RSI_DATA_BUS_WIDTH_4;
-	    error = sd_mmc_set_bus_width_4_bits();	/* Setting RSI bus width to 4-bit */
+	    error = rsi_set_bus_width_4_bits();	/* Setting RSI bus width to 4-bit */
 	    if (error) {
 		adi_rsi_card_registers.type = CARD_SLOT_NOT_INITIALIZED;
 		goto met;
 	    }
 
-	    error = sd_mmc_get_sd_ssr_register();	/* Requesting SSR register */
+	    error = rsi_get_sd_ssr_register();	/* Requesting SSR register */
 	    if (error) {
 		adi_rsi_card_registers.type = CARD_SLOT_NOT_INITIALIZED;
 		goto met;
@@ -157,10 +162,65 @@ static SD_MMC_CARD_TYPE sd_mmc_identification(void)
     return adi_rsi_card_registers.type;
 }
 
+/* Проверить эту функцию!!! На одной черной карте не работает!!!   */
+section("L1_code")
+static uint32_t rsi_get_sd_scr_register(void)
+{
+    uint32_t error = 0;
+    int t0;
+
+    *pRSI_DATA_LGTH = 8;
+    *pRSI_DATA_TIMER = CARD_TIMER_TIMEOUT;	/* таймаут в тиках тактовой частоты = полсекунды */
+
+    /* SD_MMC_CMD13 | R1_RESPONSE - read addressed card's Status register  */
+    error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
+
+    if ((*pRSI_RESPONSE0 & SD_CSR_CURRENT_STATE) == SD_CSR_CURRENT_STATE_STANDBY) {
+	error = rsi_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, adi_rsi_card_registers.sd.rca << 16);
+    }
+
+    SDBlockRead((void *) &dma_buffer[0], 8);
+
+    /* SD_MMC_CMD55 | R1_RESPONSE - Set SD card for application specific command */
+    error = rsi_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
+
+    /* SD_ACMD51 | R1_RESPONSE */
+    error = rsi_send_command(SD_CMD_GET_CONFIG_REG, 0);
+
+    if (!error) {
+	int t0 = 50;
+	*pRSI_DATA_CONTROL = 0x3B;
+/* Убрал эту проверку */
+	while (!(*pRSI_STATUS & DAT_BLK_END) && t0--) {
+		delay_ms(25);
+	}
+#if 0	
+	if (t0 <= 0) {
+	   return CMD_TIMEOUT;
+	}
+#endif
+	
+	*pRSI_STATUSCL = DAT_BLK_END_STAT | DAT_END_STAT;
+
+	/* clear the DMA Done IRQ */
+	*pDMA1_IRQ_STATUS = *pDMA1_IRQ_STATUS & DMA_DONE;
+
+	adi_rsi_card_registers.sd.scr.scr_structure = (SD_SCR_STRUCTURE) ((dma_buffer[0] & 0xF0) >> 4);
+	adi_rsi_card_registers.sd.scr.sd_spec = (SD_SCR_SD_SPEC) (dma_buffer[0] & 0x0F);
+	adi_rsi_card_registers.sd.scr.data_stat_after_erase = (dma_buffer[1] & 0x80) >> 7;
+	adi_rsi_card_registers.sd.scr.sd_security = (SD_SCR_SD_SECURITY) ((dma_buffer[1] & 0x70) >> 4);
+	adi_rsi_card_registers.sd.scr.sd_bus_widths = (SD_SCR_SD_BUS_WIDTHS) (dma_buffer[1] & 0x0F);
+    }
+
+    return error;
+}
+
+
 /**
  * Проверить что наша карта SD Version 2.0
  */
-static SD_MMC_CARD_TYPE sd_mmc_identification_sdv2(uint32_t response)
+section("L1_code")
+static SD_MMC_CARD_TYPE rsi_identification_sdv2(uint32_t response)
 {
     uint32_t error;
     SD_MMC_CARD_TYPE type = UNUSABLE_CARD;
@@ -172,11 +232,15 @@ static SD_MMC_CARD_TYPE sd_mmc_identification_sdv2(uint32_t response)
     if (response & 0x00000100) {
 
 	if ((response & 0x000000FF) == 0xAA) {
+
 	    /* Echo back patter correct */
 	    type = SD_MMC_CARD_TYPE_SD_V2X;
 	    do {
-		error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, 0);	/* card with compatible voltage range */
-		error = sd_mmc_send_command(SD_CMD_GET_OCR_VALUE, 0x40FF8000);	/* Requesting OCR register */
+	         /* SD_MMC_CMD55 | R1_RESPONSE  */
+		error = rsi_send_command(SD_MMC_CMD_APP_CMD, 0);	/* card with compatible voltage range */
+
+		/* SD_ACMD41 | R3_RESPONSE */
+		error = rsi_send_command(SD_CMD_GET_OCR_VALUE, 0x40FF8000);	/* Requesting OCR register */
 
 		if (((error & CMD_TIMEOUT) == CMD_TIMEOUT) || (!(*pRSI_RESPONSE0 & 0x00FF8000))) {
 		    type = UNUSABLE_CARD;	/* Card not responding or invalid operating condition, setting card type to UNUSABLE_CARD */
@@ -201,7 +265,8 @@ static SD_MMC_CARD_TYPE sd_mmc_identification_sdv2(uint32_t response)
  * Проверить, что карта или SD ver 1.x или вообще непонятно какая карта
  * В этом месте виснет!!!
  */
-static SD_MMC_CARD_TYPE sd_mmc_identification_sdv1(void)
+section("L1_code")
+static SD_MMC_CARD_TYPE rsi_identification_sdv1(void)
 {
     uint32_t error;
 
@@ -215,8 +280,8 @@ static SD_MMC_CARD_TYPE sd_mmc_identification_sdv1(void)
 	 *  version 2.00 or later memory card with a voltage mismatch   
 	 *  version 1.x SD memory card                                  
 	 *  MMC card */
-	error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, 0);
-	error = sd_mmc_send_command(SD_CMD_GET_OCR_VALUE, 0x00FF8000);	/* Requesting OCR register */
+	error = rsi_send_command(SD_MMC_CMD_APP_CMD, 0);
+	error = rsi_send_command(SD_CMD_GET_OCR_VALUE, 0x00FF8000);	/* Requesting OCR register */
 
 	/* Не sd карта а х.з.ч. Если случился таймаут */
 	if ((error & CMD_TIMEOUT) == CMD_TIMEOUT) {
@@ -230,11 +295,11 @@ static SD_MMC_CARD_TYPE sd_mmc_identification_sdv1(void)
     return type;		/* SD Version 1.x card detected successfully or not an SD card  */
 }
 
-
-static uint32_t sd_mmc_get_sd_cid(void)
+section("L1_code")
+static uint32_t rsi_get_sd_cid(void)
 {
     uint32_t error;
-    error = sd_mmc_send_command(SD_MMC_CMD_ALL_SEND_CID, 0);
+    error = rsi_send_command(SD_MMC_CMD_ALL_SEND_CID, 0);
     if (!error) {
 	adi_rsi_card_registers.sd.cid.mid = (*pRSI_RESPONSE0 & 0xFF000000) >> 24;
 	adi_rsi_card_registers.sd.cid.oid[0] = (*pRSI_RESPONSE0 & 0x00FF0000) >> 16;
@@ -252,19 +317,20 @@ static uint32_t sd_mmc_get_sd_cid(void)
     return error;
 }
 
-static uint32_t sd_mmc_send_csd(void)
+section("L1_code")
+static uint32_t rsi_send_csd(void)
 {
     uint32_t error;
 
     if (adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V1X || adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X ||
 	adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X_HIGH_CAPACITY) {
-	error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
+	error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
 
 	if ((*pRSI_RESPONSE0 & SD_CSR_CURRENT_STATE) == SD_CSR_CURRENT_STATE_TRANSFER) {
-	    error = sd_mmc_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, ~adi_rsi_card_registers.sd.rca << 16);
+	    error = rsi_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, ~adi_rsi_card_registers.sd.rca << 16);
 	}
 
-	error = sd_mmc_send_command(SD_MMC_CMD_SEND_CSD, (adi_rsi_card_registers.sd.rca << 16));
+	error = rsi_send_command(SD_MMC_CMD_SEND_CSD, (adi_rsi_card_registers.sd.rca << 16));
 
 	if (error == 0) {
 	    adi_rsi_card_registers.sd.csd.csd_structure = (SD_CSD_STRUCTURE) ((*pRSI_RESPONSE0 & 0xC0000000) >> 30);
@@ -318,7 +384,8 @@ static uint32_t sd_mmc_send_csd(void)
 /**
  * Установить 4-битную шину
 */
-static uint32_t sd_mmc_set_bus_width_4_bits(void)
+section("L1_code")
+static uint32_t rsi_set_bus_width_4_bits(void)
 {
     uint32_t error = CARD_SLOT_NOT_INITIALIZED;
     uint32_t argument;
@@ -327,10 +394,10 @@ static uint32_t sd_mmc_set_bus_width_4_bits(void)
     if ((adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V1X) || (adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X)
 	|| (adi_rsi_card_registers.type == SD_MMC_CARD_TYPE_SD_V2X_HIGH_CAPACITY)) {
 
-	error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
-	error = sd_mmc_send_command(SD_CMD_DISCONNECT_DAT3_PULLUP, 0);
-	error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
-	error = sd_mmc_send_command(SD_CMD_SET_BUS_WIDTH, 2);
+	error = rsi_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
+	error = rsi_send_command(SD_CMD_DISCONNECT_DAT3_PULLUP, 0);
+	error = rsi_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
+	error = rsi_send_command(SD_CMD_SET_BUS_WIDTH, 2);
 	if (!error) {
 	    *pRSI_CLK_CONTROL = clock_control_reg | 0x0800;
 	}
@@ -339,7 +406,7 @@ static uint32_t sd_mmc_set_bus_width_4_bits(void)
 }
 
 section("L1_code")
-static uint32_t sd_mmc_get_wait_until_ready(void)
+static uint32_t rsi_get_wait_until_ready(void)
 {
     uint32_t error = 0;
     uint32_t rca = 0;
@@ -361,7 +428,7 @@ static uint32_t sd_mmc_get_wait_until_ready(void)
 
     if (!error) {
 	while ((status & 0x00000100) != 0x00000100) {
-	    error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, rca);
+	    error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, rca);
 	    status = *pRSI_RESPONSE0;
 	}
     }
@@ -408,50 +475,8 @@ static void SDBlockWrite(void *pSource, uint32_t size)
     ssync();
 }
 
-/* Проверить эту функцию!!! На одной черной карте не работает!!!   */
-static uint32_t sd_mmc_get_sd_scr_register(void)
-{
-    uint32_t error = 0;
-
-    *pRSI_DATA_LGTH = 8;
-    *pRSI_DATA_TIMER = CARD_TIMER_TIMEOUT;	/* таймаут в тиках тактовой частоты = полсекунды */
-
-    error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
-
-    if ((*pRSI_RESPONSE0 & SD_CSR_CURRENT_STATE) == SD_CSR_CURRENT_STATE_STANDBY) {
-	error = sd_mmc_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, adi_rsi_card_registers.sd.rca << 16);
-    }
-
-    SDBlockRead((void *) &dma_buffer[0], 8);
-
-    error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
-    error = sd_mmc_send_command(SD_CMD_GET_CONFIG_REG, 0);
-
-    if (!error) {
-	int t0 = 0x1000;
-	*pRSI_DATA_CONTROL = 0x3B;
-
-	while (!(*pRSI_STATUS & DAT_BLK_END) && t0--);
-	if (t0 <= 0)
-	    return CMD_TIMEOUT;
-
-	*pRSI_STATUSCL = DAT_BLK_END_STAT | DAT_END_STAT;
-
-	/* clear the DMA Done IRQ */
-	*pDMA1_IRQ_STATUS = *pDMA1_IRQ_STATUS & DMA_DONE;
-
-	adi_rsi_card_registers.sd.scr.scr_structure = (SD_SCR_STRUCTURE) ((dma_buffer[0] & 0xF0) >> 4);
-	adi_rsi_card_registers.sd.scr.sd_spec = (SD_SCR_SD_SPEC) (dma_buffer[0] & 0x0F);
-	adi_rsi_card_registers.sd.scr.data_stat_after_erase = (dma_buffer[1] & 0x80) >> 7;
-	adi_rsi_card_registers.sd.scr.sd_security = (SD_SCR_SD_SECURITY) ((dma_buffer[1] & 0x70) >> 4);
-	adi_rsi_card_registers.sd.scr.sd_bus_widths = (SD_SCR_SD_BUS_WIDTHS) (dma_buffer[1] & 0x0F);
-    }
-
-    return error;
-}
-
-
-static uint32_t sd_mmc_get_sd_ssr_register(void)
+section("L1_code")
+static uint32_t rsi_get_sd_ssr_register(void)
 {
     uint32_t error = 0;
 
@@ -460,17 +485,17 @@ static uint32_t sd_mmc_get_sd_ssr_register(void)
 
     SDBlockRead((void *) &dma_buffer[0], 64);
 
-    error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
+    error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
 
     if ((*pRSI_RESPONSE0 & SD_CSR_CURRENT_STATE) == SD_CSR_CURRENT_STATE_STANDBY) {
-	error = sd_mmc_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, adi_rsi_card_registers.sd.rca << 16);
+	error = rsi_send_command(SD_MMC_CMD_SELECT_DESELECT_CARD, adi_rsi_card_registers.sd.rca << 16);
     }
     if (!error) {
-	error = sd_mmc_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
+	error = rsi_send_command(SD_MMC_CMD_APP_CMD, adi_rsi_card_registers.sd.rca << 16);
 
 	if (!error) {
 	    *pRSI_DATA_CONTROL = 0x6B;
-	    error = sd_mmc_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
+	    error = rsi_send_command(SD_MMC_CMD_SEND_STATUS, adi_rsi_card_registers.sd.rca << 16);
 
 	    if (!error) {
 		/* *pRSI_DATA_CONTROL = 0x6B; */
@@ -500,6 +525,7 @@ static uint32_t sd_mmc_get_sd_ssr_register(void)
  * Инициализация интерфейса SD карты. Порты, прерывания, DMA и проч.
  * Защиту от записи и наличие карты смотрим НЕ по 3-му пину!
  */
+section("L1_code")
 int rsi_setup(void)
 {
     int t0, t1;
@@ -546,7 +572,7 @@ int rsi_setup(void)
     /* Определить тип карты */
     t0 = 0;
     do {
-	type = sd_mmc_identification();
+	type = rsi_identification();
     } while (type == UNUSABLE_CARD && t0++ < 100);
 
     if (type == UNUSABLE_CARD || type == CARD_SLOT_NOT_INITIALIZED)
@@ -558,6 +584,7 @@ int rsi_setup(void)
 /**
  * Выключить питание с RSI
  */
+section("L1_code")
 void rsi_power_off(void)
 {
     *pRSI_CONFIG = 0;	/* Разрешим клок и подтянем ноги */
@@ -570,6 +597,7 @@ void rsi_power_off(void)
  * Какая частота стоит в PLL?
  * VCO не должно превышать 300 МГц для нашего CPU (д.б. даже меньше!!!)
  */
+section("L1_code")
 static void rsi_get_pll_clocks(void)
 {
     /* VCO = QUARTZ_CLK_FREQ * MSEL */
@@ -602,6 +630,7 @@ static void rsi_get_pll_clocks(void)
 /**
  * Установка частоты RSI на время инициализации 
  */
+section("L1_code")
 static void rsi_set_optimum_identification_speed(void)
 {
     uint32_t clkdiv = 0;
@@ -627,6 +656,7 @@ static void rsi_set_optimum_identification_speed(void)
 /**
  *  Число секторов на sd карте 
  */
+section("L1_code")
 uint32_t rsi_get_sec_count(void)
 {
     return adi_rsi_card_registers.sd.csd.c_size;
@@ -642,9 +672,9 @@ uint32_t rsi_read_blocks_from_sd_card(uint32_t block_num, void *pReadBuffer, uin
 {
     uint32_t error = 0;
     if (num_blocks == 1)
-	error = sd_mmc_read_single_block_dma(card_address(block_num), pReadBuffer);
+	error = rsi_read_single_block_dma(card_address(block_num), pReadBuffer);
     else
-	error = sd_mmc_read_multi_blocks_dma(card_address(block_num), pReadBuffer, num_blocks);
+	error = rsi_read_multi_blocks_dma(card_address(block_num), pReadBuffer, num_blocks);
     return error;
 }
 
@@ -654,9 +684,9 @@ uint32_t rsi_write_blocks_to_sd_card(uint32_t block_num, void *pWriteBuffer, uin
 {
     uint32_t error = 0;
     if (num_blocks == 1)
-	error = sd_mmc_write_single_block_dma(card_address(block_num), pWriteBuffer);
+	error = rsi_write_single_block_dma(card_address(block_num), pWriteBuffer);
     else
-	error = sd_mmc_write_multi_blocks_dma(card_address(block_num), pWriteBuffer, num_blocks);
+	error = rsi_write_multi_blocks_dma(card_address(block_num), pWriteBuffer, num_blocks);
     return error;
 }
 
@@ -667,7 +697,7 @@ uint32_t rsi_write_blocks_to_sd_card(uint32_t block_num, void *pWriteBuffer, uin
  *  Ошибки, кот. можем получить: таймаут + CRC err + startbit err
  */
 section("L1_code")
-static uint32_t sd_mmc_send_command(uint16_t command, uint32_t argument)
+static uint32_t rsi_send_command(uint16_t command, uint32_t argument)
 {
     uint32_t result = 0;
     uint32_t error = CMD_CRC_FAIL | CMD_TIMEOUT | START_BIT_ERR;
@@ -702,7 +732,7 @@ static uint32_t sd_mmc_send_command(uint16_t command, uint32_t argument)
  *  Чтение только одного блока
  */
 section("L1_code")
-static uint32_t sd_mmc_read_single_block_dma(uint32_t card_address, void *pDestination)
+static uint32_t rsi_read_single_block_dma(uint32_t card_address, void *pDestination)
 {
     uint32_t error = 0;		/* assume no error */
     uint32_t status = 0;
@@ -712,7 +742,7 @@ static uint32_t sd_mmc_read_single_block_dma(uint32_t card_address, void *pDesti
 
     SDBlockRead(pDestination, 512);	/* configures the DMA for a 512 byte read */
     *pRSI_DATA_CONTROL = 0x9B;	/* start the data path state machine so it's ready to accept data */
-    error = sd_mmc_send_command(SD_MMC_CMD_READ_SINGLE_BLOCK, card_address);	/* issue the block read command */
+    error = rsi_send_command(SD_MMC_CMD_READ_SINGLE_BLOCK, card_address);	/* issue the block read command */
 
 
     /* Ожидаем передачи блока с выводом ошибки или таймаута */
@@ -739,7 +769,7 @@ static uint32_t sd_mmc_read_single_block_dma(uint32_t card_address, void *pDesti
  *  Чтение нескольких блоков. Отличается командой от чтения одного блока.
  */
 section("L1_code")
-static uint32_t sd_mmc_read_multi_blocks_dma(uint32_t card_address, void *pDestination, uint32_t num_blocks)
+static uint32_t rsi_read_multi_blocks_dma(uint32_t card_address, void *pDestination, uint32_t num_blocks)
 {
     uint32_t error = 0;
 
@@ -749,13 +779,13 @@ static uint32_t sd_mmc_read_multi_blocks_dma(uint32_t card_address, void *pDesti
     SDBlockRead(pDestination, num_blocks * 512);
     *pRSI_DATA_CONTROL = 0x9B;
 
-    error = sd_mmc_send_command(SD_MMC_CMD_READ_MULTIPLE_BLOCK, card_address);
+    error = rsi_send_command(SD_MMC_CMD_READ_MULTIPLE_BLOCK, card_address);
     do {
 	while (!(*pRSI_STATUS & DAT_BLK_END));
     } while (!(*pRSI_STATUS & DAT_END));
 
     *pRSI_STATUSCL = DAT_BLK_END_STAT | DAT_END_STAT;
-    error = sd_mmc_send_command(SD_MMC_CMD_STOP_TRANSMISSION, 0);
+    error = rsi_send_command(SD_MMC_CMD_STOP_TRANSMISSION, 0);
 
     /* ensure the dma has completed */
     while ((*pDMA1_IRQ_STATUS & DMA_DONE) != DMA_DONE);
@@ -767,7 +797,7 @@ static uint32_t sd_mmc_read_multi_blocks_dma(uint32_t card_address, void *pDesti
  *  Запись только одного блока
  */
 section("L1_code")
-static uint32_t sd_mmc_write_single_block_dma(uint32_t card_address, void *pSource)
+static uint32_t rsi_write_single_block_dma(uint32_t card_address, void *pSource)
 {
     uint32_t error = 0;
 
@@ -775,7 +805,7 @@ static uint32_t sd_mmc_write_single_block_dma(uint32_t card_address, void *pSour
     *pRSI_DATA_TIMER = CARD_TIMER_TIMEOUT;	/* таймаут в тиках тактовой частоты = полсекунды */
 
     SDBlockWrite(pSource, 512);
-    error = sd_mmc_send_command(SD_MMC_CMD_WRITE_SINGLE_BLOCK, card_address);
+    error = rsi_send_command(SD_MMC_CMD_WRITE_SINGLE_BLOCK, card_address);
     *pRSI_DATA_CONTROL = 0x99;
 
     while (!(*pRSI_STATUS & DAT_BLK_END));
@@ -786,7 +816,7 @@ static uint32_t sd_mmc_write_single_block_dma(uint32_t card_address, void *pSour
     *pDMA1_IRQ_STATUS = *pDMA1_IRQ_STATUS & DMA_DONE;
 
     /* wait until the device becomes ready */
-    sd_mmc_get_wait_until_ready();
+    rsi_get_wait_until_ready();
     return error;
 }
 
@@ -794,7 +824,7 @@ static uint32_t sd_mmc_write_single_block_dma(uint32_t card_address, void *pSour
  *  Запись нескольких блоков. Отличается командой от записи одного блока.
  */
 section("L1_code")
-static uint32_t sd_mmc_write_multi_blocks_dma(uint32_t card_address, void *pSource, uint32_t num_blocks)
+static uint32_t rsi_write_multi_blocks_dma(uint32_t card_address, void *pSource, uint32_t num_blocks)
 {
     u32 error;
     u32 status;
@@ -803,24 +833,24 @@ static uint32_t sd_mmc_write_multi_blocks_dma(uint32_t card_address, void *pSour
     *pRSI_DATA_TIMER = CARD_TIMER_TIMEOUT * 2;	/* таймаут в тиках тактовой частоты = полсекунды */
 
     SDBlockWrite(pSource, num_blocks * 512);
-    error = sd_mmc_send_command(SD_MMC_CMD_WRITE_MULTIPLE_BLOCK, card_address);
+    error = rsi_send_command(SD_MMC_CMD_WRITE_MULTIPLE_BLOCK, card_address);
     *pRSI_DATA_CONTROL = 0x99;
 
     /* Ожидаем передачи блока с выводом ошибки или таймаута */
     while (!((status = *pRSI_STATUS) & (DAT_END | DAT_TIMEOUT)));
     *pRSI_STATUSCL = DAT_END_STAT | DAT_BLK_END_STAT | DAT_TIMEOUT_STAT;
 
-    error = sd_mmc_send_command(SD_MMC_CMD_STOP_TRANSMISSION, 0);
+    error = rsi_send_command(SD_MMC_CMD_STOP_TRANSMISSION, 0);
 
     while ((*pDMA1_IRQ_STATUS & DMA_DONE) != DMA_DONE);	/* ensure DMA has completed */
     *pDMA1_IRQ_STATUS = *pDMA1_IRQ_STATUS & DMA_DONE;
 
-    sd_mmc_get_wait_until_ready();	/* wait for the device to become ready */
+    rsi_get_wait_until_ready();	/* wait for the device to become ready */
     return error;
 }
 
-
-void sd_mmc_get_card_timeout(CARD_TIMEOUT_STRUCT * ts)
+section("L1_code")
+void rsi_get_card_timeout(CARD_TIMEOUT_STRUCT * ts)
 {
     ts->num = timeout_struct.num;
     ts->status = timeout_struct.status;

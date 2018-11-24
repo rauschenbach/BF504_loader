@@ -4,7 +4,7 @@
 #ifndef _XPANDER_H
 #define _XPANDER_H
 
-#include "my_defs.h"
+#include "globdefs.h"
 
 /**************************************************************************** 
  * Дефиниции для портов из файла <avr/iom165pa.h>,

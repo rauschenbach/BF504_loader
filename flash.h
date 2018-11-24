@@ -1,7 +1,7 @@
 #ifndef __FLASH_H
 #define __FLASH_H
 
-#include "my_defs.h"
+#include "globdefs.h"
 
 
 #define FLASH_START_ADDR 	((uint32_t)0x20000000)	/* start address - то что у нас */

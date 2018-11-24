@@ -2,7 +2,7 @@
 #define _TIMER0_H
 
 
-#include "my_defs.h"
+#include "globdefs.h"
 
 typedef enum {
    DELAY_US,

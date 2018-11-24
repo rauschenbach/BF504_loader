@@ -1,7 +1,7 @@
 #ifndef _SPORT_H
 #define _SPORT_H
 
-#include "my_defs.h"
+#include "globdefs.h"
 
 
 /* Инит. SPORT0 как в режиме SPI */

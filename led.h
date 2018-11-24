@@ -2,7 +2,7 @@
 #ifndef _LED_H
 #define _LED_H
 
-#include "my_defs.h"
+#include "globdefs.h"
 #include "xpander.h"
 
 /* Состояние и моргание лампочками */

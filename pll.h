@@ -13,7 +13,7 @@
 #ifndef	__PLL_H__
 #define __PLL_H__
 
-#include "my_defs.h"
+#include "globdefs.h"
 
 
 /* Причины сброса прибора - перечислены здесь. Из запишем в eeprom  */
@@ -24,17 +24,20 @@
 
 
 /* Частота кварца, поставленная на нашей плате, это константа нужна для SD карты */
-#define     QUARTZ_CLK_FREQ      19200000
+#define QUARTZ_CLK_FREQ 8192000
+/* Частота периферии проца = 24.576 МГц
+ * MSEL[5:0] = 30 - получили VCO = 245.760 МГц из 8.192 
+ * CSEL[1:0] = 0  - получили CCLK = VSO / 4 = 61.440 МГц, 
+ * SSEL[3:0] = 10  - получили SCLK = VSO / 10 = 24.576 МГц */
+#define 	SCLK_VALUE 	     24576000UL	
+#define 	PLLCTL_VALUE         (30 << 9)
+#define 	PLLDIV_VALUE         0x002A
 
-
-#define SCLK_VALUE	    (48000000UL)
-#define PLLCTL_VALUE        0x1400 	/* MSEL[5:0] = 10 - получили VCO = 192МГц из 19.2 */
-#define PLLDIV_VALUE        0x0004	/* CSEL[1:0] = 0  - получили CCLK = VSO/ 1 = 192МГц, SSEL[3:0] = 6  - получили SCLK = VSO/4 = 48МГц */
 
 /* Эти значения для Power Managements */
-#define PLLSTAT_VALUE       0x0000	/* NB: Только чтение!!!  */
-#define PLLLOCKCNT_VALUE    0x0200 	/* Через 512 тактов заснуть */
-#define PLLVRCTL_VALUE      (1 << 9)| (1 << 11) /* Просыпаться по прерываниям на ногах PF8 и PF9 */
+#define 	PLLSTAT_VALUE       0x0000			/* NB: Только чтение!!!  */
+#define 	PLLLOCKCNT_VALUE    0x0200			/* Через 512 тактов заснуть */
+#define 	PLLVRCTL_VALUE      ((1 << 9)|(1 << 11))	/* Просыпаться по прерываниям на ногах PF8 и PF9 */
 
 /* Частоту таймера определяем в PLL  */
 #define TIMER_PERIOD (SCLK_VALUE)

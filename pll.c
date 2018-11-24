@@ -3,7 +3,6 @@
  *******************************************************************************/
 #include <ccblkfn.h>
 #include <bfrom.h>
-#include "config.h"
 #include "pll.h"
 
 
