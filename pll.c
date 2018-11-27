@@ -1,12 +1,12 @@
 /*******************************************************************************
- * В этом файле описываются инициализация PLL для нормального и спящего режима
+ * Р’ СЌС‚РѕРј С„Р°Р№Р»Рµ РѕРїРёСЃС‹РІР°СЋС‚СЃСЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ PLL РґР»СЏ РЅРѕСЂРјР°Р»СЊРЅРѕРіРѕ Рё СЃРїСЏС‰РµРіРѕ СЂРµР¶РёРјР°
  *******************************************************************************/
 #include <ccblkfn.h>
 #include <bfrom.h>
 #include "pll.h"
 
 
-/*  Инициализация PLL, на вариант в файле заголовка */
+/*  РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ PLL, РЅР° РІР°СЂРёР°РЅС‚ РІ С„Р°Р№Р»Рµ Р·Р°РіРѕР»РѕРІРєР° */
 void PLL_init(void)
 {
 	u32 SIC_IWR1_reg;	/* backup SIC_IWR1 register */
@@ -31,37 +31,37 @@ void PLL_init(void)
 
 
 
-/* Перевести процессор в спящий режим  */
+/* РџРµСЂРµРІРµСЃС‚Рё РїСЂРѕС†РµСЃСЃРѕСЂ РІ СЃРїСЏС‰РёР№ СЂРµР¶РёРј  */
 section("L1_code")
 void PLL_sleep(DEV_STATE_ENUM state)
 {
      if(state != DEV_COMMAND_MODE_STATE) {
 	ADI_SYSCTRL_VALUES sleep;
 
-	/* прочитать */
+	/* РїСЂРѕС‡РёС‚Р°С‚СЊ */
 	bfrom_SysControl(SYSCTRL_EXTVOLTAGE | SYSCTRL_PLLCTL | SYSCTRL_READ, &sleep, NULL);
-        sleep.uwPllCtl |= STOPCK;       /* Изменим на Sleep режим */
+        sleep.uwPllCtl |= STOPCK;       /* РР·РјРµРЅРёРј РЅР° Sleep СЂРµР¶РёРј */
 
-	/* и записать, нет нужды избегать аномальности - все равно проснеца */
+	/* Рё Р·Р°РїРёСЃР°С‚СЊ, РЅРµС‚ РЅСѓР¶РґС‹ РёР·Р±РµРіР°С‚СЊ Р°РЅРѕРјР°Р»СЊРЅРѕСЃС‚Рё - РІСЃРµ СЂР°РІРЅРѕ РїСЂРѕСЃРЅРµС†Р° */
 	bfrom_SysControl(SYSCTRL_WRITE | SYSCTRL_EXTVOLTAGE | SYSCTRL_PLLCTL, &sleep, NULL);
     }
 }
 
-/* Перевести процессор в рабочий режим */
+/* РџРµСЂРµРІРµСЃС‚Рё РїСЂРѕС†РµСЃСЃРѕСЂ РІ СЂР°Р±РѕС‡РёР№ СЂРµР¶РёРј */
 void PLL_fullon(void)
 {
 	ADI_SYSCTRL_VALUES fullon;
 
-	/* прочитать */
+	/* РїСЂРѕС‡РёС‚Р°С‚СЊ */
 	bfrom_SysControl(SYSCTRL_EXTVOLTAGE | SYSCTRL_PLLCTL | SYSCTRL_READ, &fullon, NULL);
         fullon.uwPllCtl &= ~STOPCK; 
 
-	/* и записать, нет нужды избегать аномальности - все равно проснеца */
+	/* Рё Р·Р°РїРёСЃР°С‚СЊ, РЅРµС‚ РЅСѓР¶РґС‹ РёР·Р±РµРіР°С‚СЊ Р°РЅРѕРјР°Р»СЊРЅРѕСЃС‚Рё - РІСЃРµ СЂР°РІРЅРѕ РїСЂРѕСЃРЅРµС†Р° */
 	bfrom_SysControl(SYSCTRL_WRITE | SYSCTRL_EXTVOLTAGE | SYSCTRL_PLLCTL, &fullon, NULL);
 }
 
 
-/* Гибернация */
+/* Р“РёР±РµСЂРЅР°С†РёСЏ */
 void PLL_hibernate(void)
 {
 	ADI_SYSCTRL_VALUES hibernate;
@@ -76,7 +76,7 @@ void PLL_hibernate(void)
 }
 
 
-/* сбросить процессор */
+/* СЃР±СЂРѕСЃРёС‚СЊ РїСЂРѕС†РµСЃСЃРѕСЂ */
 section("L1_code")
 void PLL_reset(void)
 {
