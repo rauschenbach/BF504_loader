@@ -5,7 +5,7 @@
 
 
 /**
- * Для работы с flash я выдернул их сюда!
+ * Р”Р»СЏ СЂР°Р±РѕС‚С‹ СЃ flash СЏ РІС‹РґРµСЂРЅСѓР» РёС… СЃСЋРґР°!
  */
 static int PollToggleBit(u32, u32);
 static bool IsStatusReady(u32);
@@ -41,7 +41,7 @@ int FLASH_init(void)
 }
 
 /**
- *   Удалить сектор, передаеца адрес сектора для удаления
+ *   РЈРґР°Р»РёС‚СЊ СЃРµРєС‚РѕСЂ, РїРµСЂРµРґР°РµС†Р° Р°РґСЂРµСЃ СЃРµРєС‚РѕСЂР° РґР»СЏ СѓРґР°Р»РµРЅРёСЏ
  */
 section("L1_code")
 int FLASH_erase_page(u32 addr)
@@ -64,7 +64,7 @@ int FLASH_erase_page(u32 addr)
 }
 
 /**
- * Записать 16-ти битное число
+ * Р—Р°РїРёСЃР°С‚СЊ 16-С‚Рё Р±РёС‚РЅРѕРµ С‡РёСЃР»Рѕ
  */
 section("L1_code")
 int FLASH_program_half_word(u32 addr, u16 data)
