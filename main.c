@@ -1,4 +1,4 @@
-/* Версия Загрузчик   */
+/* Р’РµСЂСЃРёСЏ Р—Р°РіСЂСѓР·С‡РёРє   */
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
@@ -24,7 +24,7 @@
 #define  LOADER_RAM_ADDRESS	0x20010000
 #define  LOADER_ROM_ADDRESS	0x20020000
 
-static u8 buf[BUFFER_SIZE];	// читаем сюда файл
+static u8 buf[BUFFER_SIZE];	// С‡РёС‚Р°РµРј СЃСЋРґР° С„Р°Р№Р»
 static FIL loader_ram;
 static FIL loader_rom;
 static FIL boot_log;
@@ -40,45 +40,45 @@ static char *str[] = {
 };
 
 
-/* Ф-ция main()  */
+/* Р¤-С†РёСЏ main()  */
 int main(void)
 {
 	int res;
 	UINT bw, num;
 	u16 word;
 	int i;
-	PLL_init();		/* Иниц. PLL от кварца 19.2 МГц с самого начала! */
+	PLL_init();		/* РРЅРёС†. PLL РѕС‚ РєРІР°СЂС†Р° 19.2 РњР“С† СЃ СЃР°РјРѕРіРѕ РЅР°С‡Р°Р»Р°! */
 	init_bf_ports();
 	init_atmega_ports();
 	select_sdcard_to_bf();
 	delay_ms(10);
 	LED_on(LED_YELLOW);
 	delay_ms(100);
-	/* Монтируем ФС */
+	/* РњРѕРЅС‚РёСЂСѓРµРј Р¤РЎ */
 	do {
 		// 1
 		res = f_mount(&fatfs, "", 0);
-		if (res != 0) {	// не монитируеца-передаем управление
+		if (res != 0) {	// РЅРµ РјРѕРЅРёС‚РёСЂСѓРµС†Р°-РїРµСЂРµРґР°РµРј СѓРїСЂР°РІР»РµРЅРёРµ
 			break;
 		}
 
 		//2
-		/* Если все ОК - открыли boot_log */
+		/* Р•СЃР»Рё РІСЃРµ РћРљ - РѕС‚РєСЂС‹Р»Рё boot_log */
 		res = f_open(&boot_log, BOOT_LOG_NAME, FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
 		if (res) {
 			break;
 		}
-		// Определим размер     
+		// РћРїСЂРµРґРµР»РёРј СЂР°Р·РјРµСЂ     
 		i = f_size(&boot_log);
 		if (i > 0x7F000000) {
 			f_truncate(&boot_log);
 			i = 0;
 		}
-		// Переставим указатель файла
+		// РџРµСЂРµСЃС‚Р°РІРёРј СѓРєР°Р·Р°С‚РµР»СЊ С„Р°Р№Р»Р°
 		f_lseek(&boot_log, i);
 
 		// 3
-		/* Открываем существующий файл для RAM */
+		/* РћС‚РєСЂС‹РІР°РµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ С„Р°Р№Р» РґР»СЏ RAM */
 		res = f_open(&loader_ram, LOADER_RAM_NAME, FA_READ | FA_OPEN_EXISTING);
 		if (res) {
 			f_write(&boot_log, str[0], strlen(str[0]), &bw);
@@ -87,20 +87,20 @@ int main(void)
 		}
 
 		// 4
-		/* Открываем существующий файл */
+		/* РћС‚РєСЂС‹РІР°РµРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ С„Р°Р№Р» */
 		res = f_open(&loader_rom, LOADER_ROM_NAME, FA_READ | FA_OPEN_EXISTING);
 		if (res) {
 			f_write(&boot_log, str[1], strlen(str[1]), &bw);
 			f_close(&boot_log);
 			break;
 		}
-		// если файлы у нас есть  
-		RELE_on(RELEPOW);	// Передаем управление  
+		// РµСЃР»Рё С„Р°Р№Р»С‹ Сѓ РЅР°СЃ РµСЃС‚СЊ  
+		RELE_on(RELEPOW);	// РџРµСЂРµРґР°РµРј СѓРїСЂР°РІР»РµРЅРёРµ  
 		LED_on(LED_GREEN);
 		delay_ms(10);
 
 		// 5
-		/* 2 файла у нас есть - стираем 5 первых секторов */
+		/* 2 С„Р°Р№Р»Р° Сѓ РЅР°СЃ РµСЃС‚СЊ - СЃС‚РёСЂР°РµРј 5 РїРµСЂРІС‹С… СЃРµРєС‚РѕСЂРѕРІ */
 		FLASH_init();
 		for (i = 0; i < 5; i++) {
 			res = FLASH_erase_page(LOADER_RAM_ADDRESS + i * 0x10000);
@@ -114,13 +114,13 @@ int main(void)
 	        LED_off(LED_YELLOW);
 
 
-		// 6 - стерли сектор, пишем в него        
+		// 6 - СЃС‚РµСЂР»Рё СЃРµРєС‚РѕСЂ, РїРёС€РµРј РІ РЅРµРіРѕ        
 		i = 0;
 		while (1) {
 			res = f_read(&loader_ram, buf, BUFFER_SIZE, &num);
 			LED_toggle(LED_GREEN);
 			FLASH_write_buf(LOADER_RAM_ADDRESS + i, buf, num);
-			i += num;	// Увеличим адрес на прочитаное число байт
+			i += num;	// РЈРІРµР»РёС‡РёРј Р°РґСЂРµСЃ РЅР° РїСЂРѕС‡РёС‚Р°РЅРѕРµ С‡РёСЃР»Рѕ Р±Р°Р№С‚
 			if (num < BUFFER_SIZE) {
 				//sprintf((char *) buf, str[3], i);
 				//f_write(&boot_log, buf, strlen((char *) buf), &bw);
@@ -130,13 +130,13 @@ int main(void)
 		}
 		f_write(&boot_log, str[4], strlen((char *) str[4]), &bw);
 
-		// 7 - стерли сектор, пишем в него        
+		// 7 - СЃС‚РµСЂР»Рё СЃРµРєС‚РѕСЂ, РїРёС€РµРј РІ РЅРµРіРѕ        
 		i = 0;
 		while (1) {
 			res = f_read(&loader_rom, buf, BUFFER_SIZE, &num);
 			LED_toggle(LED_GREEN);
 			FLASH_write_buf(LOADER_ROM_ADDRESS + i, buf, num);
-			i += num;	// Увеличим адрес на прочитаное число байт
+			i += num;	// РЈРІРµР»РёС‡РёРј Р°РґСЂРµСЃ РЅР° РїСЂРѕС‡РёС‚Р°РЅРѕРµ С‡РёСЃР»Рѕ Р±Р°Р№С‚
 			if (num < BUFFER_SIZE) {
 				//sprintf((char *) buf, str[3], i);
 				//f_write(&boot_log, buf, strlen((char *) buf), &bw);
@@ -148,7 +148,7 @@ int main(void)
 
 
 
-		// 8 Все записали-закрываем файл и удаляем их
+		// 8 Р’СЃРµ Р·Р°РїРёСЃР°Р»Рё-Р·Р°РєСЂС‹РІР°РµРј С„Р°Р№Р» Рё СѓРґР°Р»СЏРµРј РёС…
 		f_write(&boot_log, str[6], strlen((char *) str[6]), &bw);
 		f_close(&boot_log);
 		f_unlink(LOADER_RAM_NAME);
@@ -157,7 +157,7 @@ int main(void)
 		LED_all_off();
 	} while (0);
 
-	// Грузим основную программу
+	// Р“СЂСѓР·РёРј РѕСЃРЅРѕРІРЅСѓСЋ РїСЂРѕРіСЂР°РјРјСѓ
 	bfrom_MemBoot((void *) 0x20010000, 0, 0, NULL);
 	return 0;
 }
